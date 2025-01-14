@@ -10,3 +10,5 @@ postgres_db:
   host: "localhost" #ignored if used by docker
   sslmode: "disable"
   port: "8079"
+coin_watcher:
+  cooldown: 10 #time in seconds how often update price
