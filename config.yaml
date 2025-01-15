@@ -12,3 +12,4 @@ postgres_db:
   port: "8079"
 coin_watcher:
   cooldown: 10 #time in seconds how often update price
+  currency: "usd"

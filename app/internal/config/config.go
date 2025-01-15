@@ -4,6 +4,7 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"log"
 	"os"
+	"time"
 )
 
 type DB struct {
@@ -23,11 +24,17 @@ type Log struct {
 	FilePath string `yaml:"logger_file_path"`
 }
 
+type CoinsWatcher struct {
+	Cooldown time.Duration `yaml:"cooldown" default:"60"`
+	Currency string        `yaml:"currency" default:"USD"`
+}
+
 type Config struct {
-	Env  string `yaml:"env"`
-	DB   DB     `yaml:"postgres_db"`
-	Rest Rest   `yaml:"RestServer"`
-	Log  Log    `yaml:"logger"`
+	Env          string       `yaml:"env"`
+	DB           DB           `yaml:"postgres_db"`
+	Rest         Rest         `yaml:"RestServer"`
+	Log          Log          `yaml:"logger"`
+	CoinsWatcher CoinsWatcher `yaml:"coins_watcher"`
 }
 
 func MustLoad() *Config {
