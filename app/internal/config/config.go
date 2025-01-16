@@ -27,7 +27,7 @@ type Log struct {
 type CoinsWatcher struct {
 	Cooldown time.Duration `yaml:"cooldown" default:"60"`
 	Currency string        `yaml:"currency" default:"USD"`
-	Timeout  time.Duration `yaml:"timeout" env-required:"true"`
+	Timeout  time.Duration `yaml:"timeout" default:"10"`
 }
 
 type Config struct {
@@ -55,5 +55,9 @@ func MustLoad() *Config {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	cfg.CoinsWatcher.Cooldown = time.Duration(cfg.CoinsWatcher.Cooldown) * time.Second
+	cfg.CoinsWatcher.Timeout = time.Duration(cfg.CoinsWatcher.Timeout) * time.Second
+
 	return &cfg
 }

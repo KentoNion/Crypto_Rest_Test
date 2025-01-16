@@ -54,6 +54,7 @@ func (c Client) VerifyCoin(coin string) error {
 	return nil
 }
 
+/* в конечном итоге не пригодилось
 // Получает цену для одной монеты
 func (c Client) OneCoinPrice(coin string) (decimal.Decimal, error) {
 	const op = "gates.providers.coingecko.OneCoinPrice"
@@ -79,6 +80,7 @@ func (c Client) OneCoinPrice(coin string) (decimal.Decimal, error) {
 	c.log.Warn(op, "perhaps this currency does not exist?", currency)
 	return decimal.Zero, ErrEmptyPriceCurrency
 }
+*/
 
 // получает слайс монет - отдаёт мапу монета-цена
 func (c Client) CoinsPrice(coins []string) (map[string]decimal.Decimal, error) {

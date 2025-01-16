@@ -31,7 +31,7 @@ func NewWatcher(ctx context.Context, store CoinsStore, log *slog.Logger, cfg *co
 
 type CoinsStore interface {
 	AddObserveredCoins(ctx context.Context, coins []Coin) error
-	GetObserveredCoinsList(ctx context.Context) ([]Coin, error)
+	GetObserveredCoinsList(ctx context.Context) ([]string, error)
 	AddCoinsPrices(ctx context.Context, prices map[string]decimal.Decimal) error
 	GetPrice(ctx context.Context, coin string, timestamp time.Time) (decimal.Decimal, time.Time, error)
 	DeleteObserveredCoins(ctx context.Context, coins []string) error
@@ -78,7 +78,7 @@ func (w Watcher) AddObserveredCoins(coins []string) error {
 	return nil
 }
 
-func (w Watcher) GetObserveredCoinsList() ([]Coin, error) {
+func (w Watcher) GetObserveredCoinsList() ([]string, error) {
 	const op = "domain.Watcher.GetObserveredCoinsList"
 	w.log.Debug(op, "started GetObserveredCoinsList")
 
@@ -119,4 +119,25 @@ func (w Watcher) GetTimePrice(coin Coin, time time.Time) (decimal.Decimal, strin
 	return price, timestamp, nil
 }
 
-//функция которая будет пробегать по монетам записанных в список наблюдения (бд) и записывать их цену+время
+// функция которая будет пробегать по монетам записанных в список наблюдения (бд) и записывать их цену+время
+func (w Watcher) ScanPrices() error {
+	const op = "domain.Watcher.ScanPrices"
+
+	coins, err := w.store.GetObserveredCoinsList(w.ctx)
+	if err != nil {
+		w.log.Error(op, "failed to get observered coins list", err)
+	}
+	w.log.Info(op, "starting ScanPrices for coins: ", coins)
+	coinPrices, err := w.provider.CoinsPrice(coins)
+	if err != nil {
+		w.log.Error(op, "failed to get coins prices", err)
+		return err
+	}
+	err = w.store.AddCoinsPrices(w.ctx, coinPrices)
+	if err != nil {
+		w.log.Error(op, "failed to add coins prices", err)
+		return err
+	}
+	w.log.Info(op, "successfully added coins prices: ", coinPrices)
+	return nil
+}

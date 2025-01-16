@@ -89,7 +89,7 @@ func (s *Store) DeleteObserveredCoins(ctx context.Context, coins []string) error
 	return nil
 }
 
-func (s *Store) GetObserveredCoinsList(ctx context.Context) ([]domain.Coin, error) {
+func (s *Store) GetObserveredCoinsList(ctx context.Context) ([]string, error) {
 	const op = "gates.storage.GetObserveredCoinsList"
 	s.log.Info(op, "trying to get observered coins list")
 
@@ -101,7 +101,7 @@ func (s *Store) GetObserveredCoinsList(ctx context.Context) ([]domain.Coin, erro
 		s.log.Error(op, "failed to build query", err)
 		return nil, err
 	}
-	var coins []domain.Coin
+	var coins []string
 	err = s.db.SelectContext(ctx, &coins, qry, args...)
 	if err != nil {
 		s.log.Error(op, "failed to execute query", err)

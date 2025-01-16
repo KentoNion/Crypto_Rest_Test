@@ -1,5 +1,5 @@
 -- +goose Up
-ALTER DATABASE observered_coins SET timezone TO 'UTC';
+ALTER DATABASE coins SET timezone TO 'UTC';
 -- +goose StatementBegin
 SELECT 'up SQL query';
 CREATE TABLE IF NOT EXISTS observered_coins(

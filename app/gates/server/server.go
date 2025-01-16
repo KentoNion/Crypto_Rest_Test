@@ -18,14 +18,14 @@ type Server struct {
 	coinSrv *domain.Watcher
 }
 
-func NewServer(r *chi.Mux, db *storage.Store, log *slog.Logger, conf *config.Config) *Server {
+func NewServer(r *chi.Mux, db *storage.Store, log *slog.Logger, conf *config.Config, watcher *domain.Watcher) *Server {
 	const op = "gates.Server.NewServer"
 	server := &Server{
 		db:      db,
 		ctx:     context.Background(),
 		log:     log,
 		cfg:     conf,
-		coinSrv: domain.NewWatcher(context.Background(), db, log, conf),
+		coinSrv: watcher,
 	}
 
 	r.Put("/currency/add", server.AddCurrencyHandler)
