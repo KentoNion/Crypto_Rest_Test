@@ -13,3 +13,4 @@ postgres_db:
 coin_watcher:
   cooldown: 10 #time in seconds how often update price
   currency: "usd"
+  timeout: 60 #timeout for API request in seconds

@@ -24,8 +24,40 @@ func NewClient(cfg *config.Config, log *slog.Logger) *Client {
 	}
 }
 
+// функция проверяет монету на наличие (существование) на coingecko
+func (c Client) VerifyCoin(ctx context.Context, coin string) (bool, error) {
+	const op = "gates.providers.coingecko.VerifyCoin"
+
+	ctx, cancel := context.WithTimeout(ctx, c.cfg.CoinsWatcher.Timeout)
+	defer cancel()
+
+	// Получаем список всех монет через API Coingecko
+	c.log.Info(op, "Fetching coin list to verify:", coin)
+	coins, err := c.cg.CoinsList(ctx)
+	if err != nil {
+		c.log.Error(op, "Error fetching coin list from Coingecko", err)
+		return false, fmt.Errorf("failed to fetch coin list: %w", err)
+	}
+
+	// Проверяем, есть ли монета в списке
+	for _, i := range coins {
+		if i.ID == coin {
+			c.log.Info(op, "Coin verified:", coin)
+			return true, nil
+		}
+	}
+
+	// Монета не найдена
+	c.log.Warn(op, "Coin not found:", coin)
+	return false, nil
+}
+
+// Получает цену для одной монеты
 func (c Client) OneCoinPrice(ctx context.Context, coin string) (decimal.Decimal, error) {
 	const op = "gates.providers.coingecko.OneCoinPrice"
+
+	ctx, cancel := context.WithTimeout(ctx, c.cfg.CoinsWatcher.Timeout)
+	defer cancel()
 
 	c.log.Info(op, "trying to get price of coin: ", coin)
 	currency := c.cfg.CoinsWatcher.Currency
@@ -46,8 +78,12 @@ func (c Client) OneCoinPrice(ctx context.Context, coin string) (decimal.Decimal,
 	return decimal.Zero, ErrEmptyPriceCurrency
 }
 
+// получает слайс монет - отдаёт мапу монета-цена
 func (c Client) CoinsPrice(ctx context.Context, coins []string) (map[string]decimal.Decimal, error) {
 	const op = "gates.providers.coingecko.CoinsPrice"
+
+	ctx, cancel := context.WithTimeout(ctx, c.cfg.CoinsWatcher.Timeout)
+	defer cancel()
 
 	c.log.Info(op, "trying to get prices for coins: ", coins)
 	currency := c.cfg.CoinsWatcher.Currency

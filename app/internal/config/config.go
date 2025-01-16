@@ -27,6 +27,7 @@ type Log struct {
 type CoinsWatcher struct {
 	Cooldown time.Duration `yaml:"cooldown" default:"60"`
 	Currency string        `yaml:"currency" default:"USD"`
+	Timeout  time.Duration `yaml:"timeout" env-required:"true"`
 }
 
 type Config struct {
