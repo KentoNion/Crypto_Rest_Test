@@ -1,12 +1,14 @@
 -- +goose Up
+ALTER DATABASE observered_coins SET timezone TO 'UTC';
 -- +goose StatementBegin
 SELECT 'up SQL query';
 CREATE TABLE IF NOT EXISTS observered_coins(
     coin VARCHAR(255) NOT NULL,
-    time TIMESTAMP NOT NULL DEFAULT NOW(),
+    time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     price NUMERIC NOT NULL,
-    CONSTRAINT fk_coin FOREIGN KEY (coin) REFERENCES observered_coins (coin) ON DELETE CASCADE
+    PRIMARY KEY (coin, time)
 );
+CREATE INDEX idx_observed_coins_time ON observered_coins(time);
 -- +goose StatementEnd
 
 -- +goose Down

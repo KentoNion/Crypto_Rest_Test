@@ -1,15 +1,133 @@
 package server
 
-import "net/http"
+import (
+	"cryptoRestTest/domain"
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
 
-func AddCurrencyHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) AddCurrencyHandler(w http.ResponseWriter, r *http.Request) {
+	const op = "gates.Server.AddCurrencyHandler"
 
+	var coinsStr string
+	err := json.NewDecoder(r.Body).Decode(&coinsStr)
+	if err != nil {
+		s.log.Error(op, "Error decoding json", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.log.Info("op", "connected to AddCurrencyHandler, trying to add currency id: ", coinsStr)
+	coins := strings.Split(coinsStr, ",")
+	err = s.coinSrv.AddObserveredCoins(coins)
+	if err == domain.ErrNoVerifiedCoins { //не прошло verify coin (нет такой у coingecko)
+		s.log.Debug(op, "tried to add not existing coin: ", err)
+		http.Error(w, "No coin passed verification, (probably this coins don't exist?)", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		s.log.Error(op, ": error adding currency id: ", coins)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	s.log.Info(op, ": added coins")
+	w.WriteHeader(http.StatusOK)
 }
 
-func CurrencyPriceHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *Server) getList(w http.ResponseWriter, r *http.Request) {
+	const op = "gates.Server.getList"
+	s.log.Info("op", "connected to getList")
 
+	coins, err := s.coinSrv.GetObserveredCoinsList()
+	if err != nil {
+		s.log.Error(op, ": error getting observered coins: ", err)
+		http.Error(w, "Error getting observered coins", http.StatusInternalServerError)
+		return
+	}
+	response, err := json.Marshal(coins)
+	if err != nil {
+		s.log.Error(op, ": error marshaling response: ", err)
+		http.Error(w, "Error marshaling response", http.StatusInternalServerError)
+		return
+	}
+
+	s.log.Info(op, "retrieved coins: ", coins)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
+	w.WriteHeader(http.StatusOK)
+	return
 }
 
-func DeleteCurrencyHandler(writer http.ResponseWriter, request *http.Request) {
+func (s Server) CurrencyPriceHandler(w http.ResponseWriter, r *http.Request) {
+	const op = "gates.Server.CurrencyPriceHandler"
 
+	var coinTime coinPriceTimeRequest
+	err := json.NewDecoder(r.Body).Decode(&coinTime)
+	s.log.Debug(op, "decoded body: ", coinTime)
+	if err != nil {
+		s.log.Error(op, "Error decoding json", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = coinTime.Validate()
+	if err != nil {
+		s.log.Debug(op, "Error validating coinTime", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	coin := coinTime.Coin
+	timestampInt, err := strconv.ParseInt(coinTime.Timestamp, 10, 64)
+	if err != nil {
+		s.log.Error(op, "failed to parse timestamp", err)
+		http.Error(w, "failed to parse time", http.StatusBadRequest)
+		return
+	}
+	timestamp := time.Unix(timestampInt, 0).UTC()
+	price, time, err := s.coinSrv.GetTimePrice(domain.Coin(coin), timestamp)
+	if err != nil {
+		s.log.Error(op, "failed to get time price", err)
+		http.Error(w, "failed to get time price", http.StatusBadRequest)
+		return
+	}
+	var resp coinPriceTimeResponse
+	resp.Timestamp, resp.Price = time, price
+	response, err := json.Marshal(resp)
+	if err != nil {
+		s.log.Error(op, "failed to marshal response: ", err)
+		http.Error(w, "failed to marshal response", http.StatusBadRequest)
+		return
+	}
+	s.log.Info(op, "retrieved time price: ", price, "for timestamp: ", time)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) DeleteCurrencyHandler(w http.ResponseWriter, r *http.Request) {
+	const op = "gates.Server.DeleteCurrencyHandler"
+
+	var coinsStr string
+	err := json.NewDecoder(r.Body).Decode(&coinsStr)
+	if err != nil {
+		s.log.Error(op, "Error decoding json", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.log.Info(op, "connected to DeleteCurrencyHandler, trying to delete currency id: ", coinsStr)
+
+	coins := strings.Split(coinsStr, ",")
+	err = s.coinSrv.DeleteObserveredCoins(coins)
+	if err != nil {
+		s.log.Error(op, ": error deleting currency id: ", coins)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	s.log.Info(op, "deleted currency: ", coins)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Successfully deleted coins"))
 }

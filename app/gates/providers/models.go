@@ -1,5 +1,8 @@
 package coingecko
 
-import "fmt"
+import (
+	"fmt"
+)
 
-var ErrEmptyPriceCurrency = fmt.Errorf("no price found for this currency")
+var ErrEmptyPriceCurrency = fmt.Errorf("No price found for this currency")
+var ErrCoinDontExist = fmt.Errorf("Could not find this coin")

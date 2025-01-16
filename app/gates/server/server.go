@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"cryptoRestTest/domain"
 	"cryptoRestTest/gates/storage"
 	"cryptoRestTest/internal/config"
 	"github.com/go-chi/chi/v5"
@@ -11,23 +12,26 @@ import (
 
 type Server struct {
 	db      *storage.Store
-	context context.Context
+	ctx     context.Context
 	log     *slog.Logger
 	cfg     *config.Config
+	coinSrv *domain.Watcher
 }
 
 func NewServer(r *chi.Mux, db *storage.Store, log *slog.Logger, conf *config.Config) *Server {
 	const op = "gates.Server.NewServer"
 	server := &Server{
 		db:      db,
-		context: context.Background(),
+		ctx:     context.Background(),
 		log:     log,
 		cfg:     conf,
+		coinSrv: domain.NewWatcher(context.Background(), db, log, conf),
 	}
 
-	r.Put("/currency/add", AddCurrencyHandler)
-	r.Delete("/currency/remove", DeleteCurrencyHandler)
-	r.Get("currency/price/{id}", CurrencyPriceHandler)
+	r.Put("/currency/add", server.AddCurrencyHandler)
+	r.Delete("/currency/remove", server.DeleteCurrencyHandler)
+	r.Get("currency/price", server.CurrencyPriceHandler)
+	r.Get("/currency/watchlist", server.getList)
 
 	//swagger
 	r.Get("/swagger/*", httpSwagger.Handler(
