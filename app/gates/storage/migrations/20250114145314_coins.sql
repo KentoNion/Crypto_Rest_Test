@@ -2,7 +2,8 @@
 -- +goose StatementBegin
 SELECT 'up SQL query';
 CREATE TABLE IF NOT EXISTS observered_coins(
-    coin VARCHAR(255) PRIMARY KEY
+    coin VARCHAR(255) PRIMARY KEY,
+    id VARCHAR(255) NOT NULL
 );
 -- +goose StatementEnd
 

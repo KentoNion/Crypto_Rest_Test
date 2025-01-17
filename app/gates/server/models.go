@@ -5,6 +5,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type addCoinsReq struct {
+	Coins string `json:"coins"`
+}
+
 type coinPriceTimeRequest struct {
 	Coin      string `json:"coin"`
 	Timestamp string `json:"timestamp"`
@@ -21,6 +25,10 @@ func (r *coinPriceTimeRequest) Validate() error {
 }
 
 type coinPriceTimeResponse struct {
-	Price     decimal.Decimal `json:"coin"`
+	Price     decimal.Decimal `json:"price"`
 	Timestamp string          `json:"timestamp"`
+}
+
+type deleteCoinsReq struct {
+	Coin string `json:"coins"`
 }

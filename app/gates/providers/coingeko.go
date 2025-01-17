@@ -2,6 +2,7 @@ package coingecko
 
 import (
 	"context"
+	"cryptoRestTest/domain"
 	"cryptoRestTest/internal/config"
 	"fmt"
 	"github.com/JulianToledano/goingecko/v3/api" //ООоочень простой в использовании package специально под coingecko
@@ -27,31 +28,38 @@ func NewClient(ctx context.Context, cfg *config.Config, log *slog.Logger) *Clien
 }
 
 // функция проверяет монету на наличие (существование) на coingecko
-func (c Client) VerifyCoin(coin string) error {
-	const op = "gates.providers.coingecko.VerifyCoin"
+func (c Client) VerifyCoins(coins []string) map[string]string {
+	const op = "gates.providers.coingecko.VerifyCoins"
 
 	ctx, cancel := context.WithTimeout(c.ctx, c.cfg.CoinsWatcher.Timeout)
 	defer cancel()
 
-	// Получаем список всех монет через API Coingecko
-	c.log.Info(op, "Fetching coin list to verify:", coin)
-	coins, err := c.cg.CoinsList(ctx)
+	c.log.Info(op, "Fetching coin list to verify:", coins)
+	list, err := c.cg.CoinsList(ctx)
 	if err != nil {
 		c.log.Error(op, "Error fetching coin list from Coingecko", err)
-		return ErrCoinDontExist
+		return nil
 	}
 
-	// Проверяем, есть ли монета в списке
-	for _, i := range coins {
-		if i.ID == coin {
-			c.log.Info(op, "Coin verified:", coin)
-			return nil
+	// Преобразуем список монет от CoinGecko в map для ускорения поиска
+	coinMap := make(map[string]string, len(list))
+	for _, coin := range list {
+		coinMap[coin.Symbol] = coin.ID // Используем символы (symbol) для сопоставления
+	}
+
+	verifiedCoins := make(map[string]string)
+	for _, coin := range coins {
+		// Преобразуем входной символ в ID
+		if id, exists := coinMap[coin]; exists {
+			verifiedCoins[coin] = id
+			c.log.Debug(op, "Coin verified:", coin)
+		} else {
+			c.log.Warn(op, "Coin not found in CoinGecko list:", coin)
 		}
 	}
 
-	// Монета не найдена
-	c.log.Warn(op, "Coin not found:", coin)
-	return nil
+	c.log.Info(op, "Verified coins:", verifiedCoins)
+	return verifiedCoins
 }
 
 /* в конечном итоге не пригодилось
@@ -83,29 +91,45 @@ func (c Client) OneCoinPrice(coin string) (decimal.Decimal, error) {
 */
 
 // получает слайс монет - отдаёт мапу монета-цена
-func (c Client) CoinsPrice(coins []string) (map[string]decimal.Decimal, error) {
+func (c Client) CoinsPrice(coins map[string]string) ([]domain.Coin, error) {
 	const op = "gates.providers.coingecko.CoinsPrice"
 
 	ctx, cancel := context.WithTimeout(c.ctx, c.cfg.CoinsWatcher.Timeout)
 	defer cancel()
 
-	c.log.Info(op, "trying to get prices for coins: ", coins)
+	c.log.Info(op, "trying to get prices for coins:", coins)
 	currency := c.cfg.CoinsWatcher.Currency
 
-	coinsQuery := strings.Join(coins, ",")
+	// Собираем значения из мапы coins (id) в строку через запятую
+	coinIDs := make([]string, 0, len(coins))
+	for _, id := range coins {
+		coinIDs = append(coinIDs, id)
+	}
+	coinsQuery := strings.Join(coinIDs, ",")
+
+	// Получаем цены через API CoinGecko
 	priceMap, err := c.cg.SimplePrice(ctx, coinsQuery, currency, false)
 	if err != nil {
 		c.log.Error(op, "Error getting prices from coingecko", err)
 		return nil, err
 	}
 
-	// Формируем результат
-	result := make(map[string]decimal.Decimal)
-	for _, coin := range coins {
-		if coinPrice, ok := priceMap[coin][currency]; ok {
-			result[coin] = decimal.NewFromFloat(coinPrice)
+	// Формируем результат в формате []domain.Coin
+	var result []domain.Coin
+	for name, id := range coins {
+		if cgPrices, exists := priceMap[id]; exists {
+			if price, ok := cgPrices[currency]; ok {
+				coin := domain.Coin{
+					Name:  name,
+					Id:    id,
+					Price: decimal.NewFromFloat(price),
+				}
+				result = append(result, coin)
+			} else {
+				c.log.Warn(op, "Price not found for id in the specified currency:", id, currency)
+			}
 		} else {
-			c.log.Warn(op, "price for coin not found: ", coin)
+			c.log.Warn(op, "ID not found in CoinGecko price map:", id)
 		}
 	}
 
@@ -115,6 +139,7 @@ func (c Client) CoinsPrice(coins []string) (map[string]decimal.Decimal, error) {
 		return nil, err
 	}
 
+	c.log.Debug(op, "retrieved coin prices:", result)
 	c.log.Info(op, "successfully retrieved prices for coins")
 	return result, nil
 }

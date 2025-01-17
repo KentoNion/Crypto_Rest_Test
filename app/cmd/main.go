@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"cryptoRestTest/domain"
+	coingecko "cryptoRestTest/gates/providers"
 	"cryptoRestTest/gates/server"
 	"cryptoRestTest/gates/storage"
 	"cryptoRestTest/internal/config"
@@ -48,24 +49,26 @@ func main() {
 		panic(err)
 	}
 
+	//инициализация provider client
+	provider := coingecko.NewClient(context.Background(), cfg, log)
+
 	//инициализация watcher
-	watcher := domain.NewWatcher(context.Background(), store, log, cfg)
+	watcher := domain.NewWatcher(context.Background(), store, log, provider, cfg)
 
 	//запуск горутины по отслеживанию монет
 	go func(watcher *domain.Watcher) {
-		time.Sleep(5 * time.Second) //ждём 5 секунд пока всё не запустится
 		observeTicker := time.NewTicker(cfg.CoinsWatcher.Cooldown)
 		for {
 			select {
 			case <-observeTicker.C:
 				err = watcher.ScanPrices()
-				log.Warn("------------------WARNING, ScanPrices failed!--------------------------")
+				if err != nil {
+					log.Warn("------------------WARNING, ScanPrices failed!--------------------------")
+				}
 			}
 		}
 	}(watcher)
 
-	fmt.Println("timeout: ", cfg.CoinsWatcher.Timeout)
-	fmt.Println("cooldown: ", cfg.CoinsWatcher.Cooldown)
 	//настройка и запуск REST сервера
 	router := chi.NewRouter()
 	_ = server.NewServer(router, store, log, cfg, watcher)

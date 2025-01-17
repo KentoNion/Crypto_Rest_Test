@@ -2,13 +2,12 @@
 ALTER DATABASE coins SET timezone TO 'UTC';
 -- +goose StatementBegin
 SELECT 'up SQL query';
-CREATE TABLE IF NOT EXISTS observered_coins(
+CREATE TABLE IF NOT EXISTS price_history(
     coin VARCHAR(255) NOT NULL,
     time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     price NUMERIC NOT NULL,
     PRIMARY KEY (coin, time)
 );
-CREATE INDEX idx_observed_coins_time ON observered_coins(time);
 -- +goose StatementEnd
 
 -- +goose Down

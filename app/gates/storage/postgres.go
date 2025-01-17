@@ -20,25 +20,18 @@ func NewDB(db *sqlx.DB, log *slog.Logger) *Store {
 	}
 }
 
-func (s *Store) AddObserveredCoins(ctx context.Context, coins []domain.Coin) error {
-	const op = "gates.storage.AddObserveredCoin"
-	s.log.Info(op, "trying to add coins:", coins)
+func (s *Store) AddObserveredCoins(ctx context.Context, coins map[string]string) error {
+	const op = "gates.storage.AddObserveredCoins"
+	s.log.Debug(op, "trying to add coins:", coins)
 
-	// Проверяем, есть ли монеты для добавления
-	if len(coins) == 0 {
-		s.log.Warn(op, "no coins provided for insertion")
-		return nil
-	}
-
-	// Формируем SQL-запрос
 	query := s.sq.Insert("observered_coins").
-		Columns("coin_name").
+		Columns("coin", "id").
 		Suffix("ON CONFLICT DO NOTHING")
 
-	// Добавляем все монеты в запрос
-	for _, coin := range coins {
-		query = query.Values(coin)
+	for coin, id := range coins {
+		query = query.Values(coin, id)
 	}
+
 	qry, args, err := query.ToSql()
 	s.log.Debug(op, "query: ", qry, "args: ", args)
 	if err != nil {
@@ -57,16 +50,16 @@ func (s *Store) AddObserveredCoins(ctx context.Context, coins []domain.Coin) err
 		return ErrNoRowsAffected
 	}
 
-	s.log.Info(op, "successfully added coins:", coins)
+	s.log.Debug(op, "successfully added coins:", coins)
 	return nil
 }
 
 func (s *Store) DeleteObserveredCoins(ctx context.Context, coins []string) error {
 	const op = "gates.storage.DeleteObserveredCoin"
-	s.log.Info(op, "trying to delete coins:", coins)
+	s.log.Debug(op, "trying to delete coins:", coins)
 
 	query := s.sq.Delete("observered_coins").
-		Where(sq.Eq{"coin_name": coins}) // sq.Eq поддерживает массив значений
+		Where(sq.Eq{"coin": coins})
 	qry, args, err := query.ToSql()
 	s.log.Debug(op, "query: ", qry, "args: ", args)
 	if err != nil {
@@ -85,15 +78,15 @@ func (s *Store) DeleteObserveredCoins(ctx context.Context, coins []string) error
 		return ErrNoRowsAffected
 	}
 
-	s.log.Info(op, "successfully deleted coins:", coins)
+	s.log.Debug(op, "successfully deleted coins:", coins)
 	return nil
 }
 
-func (s *Store) GetObserveredCoinsList(ctx context.Context) ([]string, error) {
+func (s *Store) GetObserveredCoinsList(ctx context.Context) (map[string]string, error) {
 	const op = "gates.storage.GetObserveredCoinsList"
-	s.log.Info(op, "trying to get observered coins list")
+	s.log.Debug(op, "trying to get observered coins list")
 
-	query := s.sq.Select("coin_name").
+	query := s.sq.Select("coin", "id").
 		From("observered_coins")
 	qry, args, err := query.ToSql()
 	s.log.Debug(op, "query: ", qry, "args: ", args)
@@ -101,27 +94,40 @@ func (s *Store) GetObserveredCoinsList(ctx context.Context) ([]string, error) {
 		s.log.Error(op, "failed to build query", err)
 		return nil, err
 	}
-	var coins []string
-	err = s.db.SelectContext(ctx, &coins, qry, args...)
+
+	type coinRow struct {
+		Coin string `db:"coin"`
+		ID   string `db:"id"`
+	}
+
+	var rows []coinRow
+	err = s.db.SelectContext(ctx, &rows, qry, args...)
 	if err != nil {
 		s.log.Error(op, "failed to execute query", err)
 		return nil, err
 	}
-	s.log.Info(op, "successfully retrieved observered coins list")
+
+	// Перегоняем в мапу
+	coins := make(map[string]string, len(rows))
+	for _, row := range rows {
+		coins[row.Coin] = row.ID
+	}
+
+	s.log.Debug(op, "successfully retrieved observered coins list")
 	return coins, nil
 }
 
-func (s *Store) AddCoinsPrices(ctx context.Context, prices map[string]decimal.Decimal) error {
+func (s *Store) AddCoinsPrices(ctx context.Context, coins []domain.Coin) error {
 	const op = "gates.storage.AddCoinsPrices"
-	s.log.Info(op, "trying to add coin prices")
+	s.log.Debug(op, "trying to add coin prices")
 
 	// Начинаем построение запроса
 	query := s.sq.Insert("price_history").
 		Columns("coin", "price", "time").
 		Suffix("ON CONFLICT DO NOTHING")
 
-	for coin, price := range prices {
-		query = query.Values(coin, price, nil) // nil во время тк в таблице NOW()
+	for _, coin := range coins {
+		query = query.Values(coin.Name, coin.Price, time.Now().UTC())
 	}
 
 	// Генерируем SQL-запрос
@@ -144,19 +150,19 @@ func (s *Store) AddCoinsPrices(ctx context.Context, prices map[string]decimal.De
 		return ErrNoRowsAffected
 	}
 
-	s.log.Info(op, "successfully added coin prices")
+	s.log.Debug(op, "successfully added coin prices")
 	return nil
 }
 
 func (s *Store) GetPrice(ctx context.Context, coin string, timestamp time.Time) (decimal.Decimal, time.Time, error) {
 	const op = "gates.storage.GetPrice"
-	s.log.Info(op, "trying to get price for coin", "coin", coin, "timestamp", timestamp)
+	s.log.Debug(op, "trying to get price for coin", "coin", coin, "time", timestamp)
 
 	query := s.sq.Select("price, time").
-		From("observered_coins").
+		From("price_history").
 		Where(sq.Eq{"coin": coin}).
-		OrderBy("ABS(EXTRACT(EPOCH FROM (time - ?)))").
-		Limit(1) // Находим запись с минимальной разницей во времени
+		OrderBy("ABS(EXTRACT(EPOCH FROM (time - ?)))"). // Используем значение времени для сортировки
+		Limit(1)
 
 	qry, args, err := query.ToSql()
 	s.log.Debug(op, "query: ", qry, "args: ", args)
@@ -164,16 +170,21 @@ func (s *Store) GetPrice(ctx context.Context, coin string, timestamp time.Time) 
 		s.log.Error(op, "failed to build query", err)
 		return decimal.Zero, time.Time{}, err
 	}
-	args = append([]interface{}{timestamp}, args...)
 
-	var r priceTime
+	// Порядок аргументов: сначала coin, затем timestamp
+	args = append(args, timestamp)
+
+	var r struct {
+		Price decimal.Decimal `db:"price"`
+		Time  time.Time       `db:"time"`
+	}
 	err = s.db.GetContext(ctx, &r, qry, args...)
 	if err != nil {
 		s.log.Error(op, "failed to execute query", err)
 		return decimal.Zero, time.Time{}, err
 	}
 
-	s.log.Info(op, "successfully retrieved price",
+	s.log.Debug(op, "successfully retrieved price",
 		"coin", coin,
 		"request_timestamp", timestamp,
 		"found_timestamp", r.Time,

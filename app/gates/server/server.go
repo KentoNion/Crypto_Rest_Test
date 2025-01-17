@@ -28,9 +28,9 @@ func NewServer(r *chi.Mux, db *storage.Store, log *slog.Logger, conf *config.Con
 		coinSrv: watcher,
 	}
 
-	r.Put("/currency/add", server.AddCurrencyHandler)
+	r.Post("/currency/add", server.AddCurrencyHandler)
 	r.Delete("/currency/remove", server.DeleteCurrencyHandler)
-	r.Get("currency/price", server.CurrencyPriceHandler)
+	r.Get("/currency/price", server.CurrencyPriceHandler)
 	r.Get("/currency/watchlist", server.getList)
 
 	//swagger
