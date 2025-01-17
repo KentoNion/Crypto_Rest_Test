@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "cryptoRestTest/docs" //документы для swagger
 	"cryptoRestTest/domain"
 	coingecko "cryptoRestTest/gates/providers"
 	"cryptoRestTest/gates/server"
@@ -18,6 +19,13 @@ import (
 	"time"
 )
 
+//@title Crypto_REST_test
+//@version 1.0.0
+//@description tracking your crypto coins
+
+// @host localhost:8080
+// @BasePath /
+
 func main() {
 	//инициализация конфига
 	cfg := config.MustLoad()
@@ -30,6 +38,9 @@ func main() {
 	dbhost := os.Getenv("DB_HOST") //DB_HOST прописывается в docker_compose, если его там нет, значит считается из конфига
 	if dbhost == "" {
 		dbhost = cfg.DB.Host
+	} else {
+		log.Info("starting in docker container, sleeping for 30s, waiting to database to start")
+		time.Sleep(30 * time.Second) //кстати если мы в докере, тогда пусть поспит 30 секунд чтоб бд успела запуститься
 	}
 	connStr := fmt.Sprintf("user=%s password=%s dbname=coins host=%s sslmode=%s timezone=UTC", cfg.DB.User, cfg.DB.Pass, dbhost, cfg.DB.Ssl)
 	conn, err := sqlx.Connect("postgres", connStr) //подключение к бд

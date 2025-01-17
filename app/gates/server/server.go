@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	_ "cryptoRestTest/docs"
 	"cryptoRestTest/domain"
 	"cryptoRestTest/gates/storage"
 	"cryptoRestTest/internal/config"
@@ -28,14 +29,16 @@ func NewServer(r *chi.Mux, db *storage.Store, log *slog.Logger, conf *config.Con
 		coinSrv: watcher,
 	}
 
+	// Настройка маршрутов для эндпоинтов
 	r.Post("/currency/add", server.AddCurrencyHandler)
 	r.Delete("/currency/remove", server.DeleteCurrencyHandler)
 	r.Get("/currency/price", server.CurrencyPriceHandler)
 	r.Get("/currency/watchlist", server.getList)
 
-	//swagger
+	// Настройка Swagger UI
 	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:8080/swagger/doc.json")))
+		httpSwagger.URL("/swagger/doc.json"), // Указываем путь к документации
+	))
 
 	server.log.Info(op, "router configured")
 	return server

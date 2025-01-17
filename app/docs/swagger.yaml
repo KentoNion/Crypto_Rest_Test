@@ -1,0 +1,142 @@
+basePath: /
+definitions:
+  server.addCoinsReq:
+    properties:
+      coins:
+        type: string
+    type: object
+  server.coinPriceTimeResponse:
+    properties:
+      coin:
+        type: string
+      price:
+        type: number
+      timestamp:
+        type: string
+    type: object
+  server.deleteCoinsReq:
+    properties:
+      coins:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: tracking your crypto coins
+  title: Crypto_REST_test
+  version: 1.0.0
+paths:
+  /currency/add:
+    post:
+      consumes:
+      - application/json
+      description: Adds a list of currencies to the observed list.
+      parameters:
+      - description: Request body with coins to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.addCoinsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully added coins
+          schema:
+            type: string
+        "400":
+          description: Invalid input or validation error
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Add Observed Currencies
+      tags:
+      - Currencies
+  /currency/price:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves the price of a specific currency at a given timestamp.
+      parameters:
+      - description: Currency symbol (e.g., BTC)
+        in: query
+        name: coin
+        required: true
+        type: string
+      - description: Timestamp in Unix format
+        in: query
+        name: timestamp
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Price and timestamp of the requested currency
+          schema:
+            $ref: '#/definitions/server.coinPriceTimeResponse'
+        "400":
+          description: Invalid input or validation error
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get Currency Price at Specific Time
+      tags:
+      - Currencies
+  /currency/remove:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a list of currencies from the observed list.
+      parameters:
+      - description: Request body with coins to delete
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.deleteCoinsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully deleted coins
+          schema:
+            type: string
+        "400":
+          description: Invalid input or validation error
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Delete Observed Currencies
+      tags:
+      - Currencies
+  /currency/watchlist:
+    get:
+      description: Retrieves a list of all observed currencies.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of observed currencies
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get Observed Currencies
+      tags:
+      - Currencies
+swagger: "2.0"

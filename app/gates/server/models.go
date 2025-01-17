@@ -25,6 +25,7 @@ func (r *coinPriceTimeRequest) Validate() error {
 }
 
 type coinPriceTimeResponse struct {
+	Coin      string          `json:"coin"`
 	Price     decimal.Decimal `json:"price"`
 	Timestamp string          `json:"timestamp"`
 }
